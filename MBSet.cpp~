@@ -1,0 +1,172 @@
+/* 
+ * File:   MBSet.cu
+ * 
+ * Created on June 24, 2012
+ * 
+ * Purpose:  This program displays Mandelbrot set using the GPU via CUDA and
+ * OpenGL immediate mode.
+ * 
+ */
+
+#include <iostream>
+#include <stack>
+//#include <cuda_runtime_api.h>
+#include <stdio.h>
+#include <math.h>
+//#include "Complex.cu"
+#include "Complex.cc"
+#include <GL/freeglut.h>
+#include <GL/glut.h>
+#include <math.h>
+#include <GL/glext.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+
+// Size of window in pixels, both width and height
+#define WINDOW_DIM            512
+
+using namespace std;
+
+// Initial screen coordinates, both host and device.
+// x goes from -2 to 1 and y oges from -1.2 to 1.8
+Complex minC(-2.0, -1.2);
+Complex maxC(1.0, 1.8);
+Complex* dev_minC;
+Complex* dev_maxC;
+int MArr[512][512];
+const int maxIt = 2000; // Msximum Iterations
+
+double coordinateReal(double x){//calculate real part of coordinate from x value
+return (minC.real + x*(maxC.real-minC.real)/(511));
+}
+
+double coordinateImaginary(double y){
+return (maxC.imag - y*(maxC.imag-minC.imag)/(511));
+}
+
+void calculateMandlebrot(){
+  for( int  y=0; y<250; ++y){
+    double coordIm = coordinateImaginary(y);
+    for( int x=0;  x<WINDOW_DIM; ++x){
+      double coordReal = coordinateReal(x);
+      Complex cCoord = Complex(coordReal,coordIm);
+      bool isInside = true;
+      Complex zCoord = Complex(coordReal,coordIm);
+      for(int n=0;n<maxIt;++n){//calculate whether it is in the set
+	if(zCoord.abs() > 2)
+	  {
+	    isInside = false;
+	    break;
+	  }
+	// z = z^2 + c
+	zCoord = (zCoord * zCoord) + cCoord;
+      }
+      if(isInside){
+      cout << "isInside " << isInside << " x " << x << " y " << y << endl;
+      }
+      if(isInside){
+        MArr[x][y] = 1;
+	//glColor3f(0.0,0.0,0.0); //black
+      }    
+      else{
+        MArr[x][y] = 0;
+	//glColor3f(1.0,1.0,1.0);//white
+      }
+    }
+  }
+}
+
+void displayMandlebrot(){
+  cout << "hello from displayMandlebrot" << endl;
+  glBegin(GL_POINTS);
+  for(int x =0; x< WINDOW_DIM; x++){
+    for(int y=0; y<WINDOW_DIM; y++){
+      if(MArr[x][y] == 1){ //its in the set
+      //draw it black
+      cout << "its in the set. drawing red." << "x:"<<x<<" y:"<< y << endl;
+      glColor3f(1.0,0.0,0.0);
+      glVertex2i(x,y);
+      }
+      else{ // its not
+      //draw it white 
+      //cout << "its not in the set" << endl;
+      glColor3f(1.0,0.0,0.0);
+      glVertex2i(x,y);  
+      }
+    }
+  }
+  glEnd();
+}
+void display(void){
+  cout << "hello from display ()" << endl;
+  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  displayMandlebrot();
+  glutSwapBuffers();
+  int i;
+  cin >> i;
+}
+// Define the RGB Class
+class RGB
+{
+public:
+  RGB()
+    : r(0), g(0), b(0) {}
+  RGB(double r0, double g0, double b0)
+    : r(r0), g(g0), b(b0) {}
+public:
+  double r;
+  double g;
+  double b;
+};
+
+RGB* colors = 0; // Array of color values
+
+void InitializeColors()
+{
+  colors = new RGB[maxIt + 1];
+  for (int i = 0; i < maxIt; ++i)
+    {
+      if (i < 5)
+        { // Try this.. just white for small it counts
+          colors[i] = RGB(1, 1, 1);
+        }
+      else
+        {
+          colors[i] = RGB(drand48(), drand48(), drand48());
+        }
+    }
+  colors[maxIt] = RGB(); // black
+}
+
+void init(){
+  glShadeModel(GL_FLAT);
+  glViewport(0,0,WINDOW_DIM, WINDOW_DIM);
+  //drawMandlebrot();
+}
+
+
+int main(int argc, char** argv)
+{ calculateMandlebrot();
+  // Initialize OPENGL here
+  glutInit(&argc, argv);
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+  glutInitWindowSize(WINDOW_DIM,WINDOW_DIM);
+  glutInitWindowPosition(100,100);
+  glutCreateWindow("Mandlebrot");
+  init();
+  glViewport(0,0, (GLsizei) 512, (GLsizei) 512);
+  glMatrixMode (GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(-2.0,1.0,-1.2,1.8, ((GLfloat)-1), (GLfloat)1);
+  // Set up necessary host and device buffers
+  // set up the opengl callbacks for display, mouse and keyboard
+  glutDisplayFunc(display);
+  glutIdleFunc(display);
+  // Calculate the interation counts
+  // Grad students, pick the colors for the 0 .. 1999 iteration count pixels
+  InitializeColors();
+  glutMainLoop(); // THis will callback the display, keyboard and mouse
+  return 0;
+  
+}

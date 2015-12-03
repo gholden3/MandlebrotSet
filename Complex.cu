@@ -1,7 +1,4 @@
-/* 
- * File:   Complex.cu
- * 
- * Created on June 24, 2012
+/*reated on June 24, 2012
  * 
  * Purpose:  Simple complex number class for use on GPU
  * 
